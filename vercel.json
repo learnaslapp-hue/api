@@ -7,9 +7,9 @@
     }
   ],
   "routes": [
-    { "src": "/email-verification.html", "dest": "/public/email-verification.html" },
-    { "src": "/reset-password.html", "dest": "/public/reset-password.html" },
-    { "src": "/api/.*", "dest": "index.js" },
+    { "src": "/(.*\\.(?:html|css|js|png|jpg|jpeg|gif|svg|ico|txt|map))", "dest": "/public/$1" },
+    { "src": "/(favicon\\.ico)", "dest": "/public/$1" },
+    { "src": "/api/(.*)", "dest": "index.js" },
     { "src": "/(.*)", "dest": "index.js" }
   ],
   "env": {
