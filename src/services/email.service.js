@@ -19,41 +19,53 @@ function isProd() {
 }
 
 // Build the absolute base URL for production fetches.
-// Prefer Vercel's injected domain, otherwise let users set APP_BASE_URL.
+// Prefer Vercel's injected domain, otherwise allow APP_BASE_URL override.
 function getProdBaseUrl() {
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/+$/, '');
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/+$/,'');
   return '';
 }
 
-// Try to fetch a template from the live site. We try both "/<file>" and "/public/<file>"
-async function fetchTemplateFromProd(file) {
+// Fetch a public file with Deployment Protection bypass, if enabled.
+async function fetchPublicFile(file) {
   const base = getProdBaseUrl();
-  if (!base) throw new Error('Missing base URL for template fetch (set APP_BASE_URL or rely on VERCEL_URL in Vercel).');
+  if (!base) throw new Error('Missing base URL for template fetch (set APP_BASE_URL or rely on VERCEL_URL on Vercel).');
 
-  const candidates = [
-    `${base}/${file}`,           // normal public path on Vercel
-    `${base}/public/${file}`     // fallback in case routes require explicit /public
-  ];
+  // Normal public path on Vercel (filesystem handler serves /public/* at root)
+  const url = `${base}/${file}`;
 
-  let lastStatus = 0;
-  let lastText = '';
-  for (const url of candidates) {
-    const res = await fetch(url);
-    lastStatus = res.status;
-    if (res.ok) return await res.text();
-    try { lastText = await res.text(); } catch { /* ignore */ }
+  // If the project uses Deployment Protection, add the bypass header
+  const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  const headers = bypass ? { 'x-vercel-protection-bypass': bypass } : undefined;
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    // Fallback: try query-string bypass (also supported by Vercel)
+    if (bypass && res.status === 401) {
+      const qs = `?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${encodeURIComponent(bypass)}`;
+      const res2 = await fetch(url + qs, { headers });
+      if (res2.ok) return await res2.text();
+      const txt = await safeText(res2);
+      throw new Error(`Failed to fetch template ${file}: ${res2.status} ${res2.statusText} ${txt ? '- ' + txt : ''}`);
+    }
+    const txt = await safeText(res);
+    throw new Error(`Failed to fetch template ${file}: ${res.status} ${res.statusText} ${txt ? '- ' + txt : ''}`);
   }
-  throw new Error(`Failed to fetch template ${file}: ${lastStatus} ${lastText || 'Error'}`);
+  return await res.text();
 }
 
+async function safeText(res) {
+  try { return await res.text(); } catch { return ''; }
+}
+
+// Load template:
+//  - Local dev: read from filesystem
+//  - Prod: fetch from the live site with optional protection bypass
 async function loadTemplate(file) {
   if (!isProd()) {
-    // Local dev: read from filesystem
     return await readFile(resolveLocal(file), 'utf-8');
   }
-  // Production: fetch from static site
-  return await fetchTemplateFromProd(file);
+  return await fetchPublicFile(file);
 }
 
 function createTransporter() {
