@@ -6,6 +6,15 @@
       "use": "@vercel/node"
     }
   ],
+  "functions": {
+    "index.js": {
+      "runtime": "nodejs20.x",
+      "includeFiles": [
+        "templates/**",
+        "node_modules/swagger-ui-dist/**"
+      ]
+    }
+  },
   "routes": [
     { "src": "/api/.*", "dest": "index.js" },
     { "src": "/(.*)", "dest": "index.js" }
