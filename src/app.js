@@ -6,11 +6,13 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import swaggerJsdoc from 'swagger-jsdoc';
+import * as swaggerUiDist from 'swagger-ui-dist'; // ESM-safe import
+
 import { swaggerOptions } from './config/swagger.js';
 import routes from './routes/index.routes.js';
 import { notFound, errorHandler } from './middlewares/error-handler.js';
 
-// For ESM __dirname
+// ESM __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -24,41 +26,53 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 
-// ===== Swagger (LOCAL assets, no CDN, route-scoped CSP) =====
+/* ============================
+   Swagger (LOCAL assets, no CDN)
+   ============================ */
 
 // 1) Build the OpenAPI spec
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// 2) Serve the raw JSON spec
+// 2) Expose raw JSON spec
 app.get('/swagger.json', (_req, res) => {
   res.type('application/json').status(200).send(swaggerSpec);
 });
 
 // 3) Serve Swagger UI assets from node_modules/swagger-ui-dist
-//    Vercel bundles production dependencies into the function, so these files are available.
-const swaggerUiDistPath = (() => {
-  // dynamic import-compatible way to resolve the absolute FS path to swagger-ui-dist
-  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
-  const dist = require('swagger-ui-dist'); // allowed in Node ESM for CJS modules
-  return dist.getAbsoluteFSPath();
-})();
-app.use('/swagger-assets', express.static(swaggerUiDistPath, { maxAge: '1y' }));
+//    This uses ESM-friendly import of the CJS package.
+const swaggerUiDistPath =
+  typeof swaggerUiDist.getAbsoluteFSPath === 'function'
+    ? swaggerUiDist.getAbsoluteFSPath()
+    : // fallback in case the package shape changes
+      swaggerUiDist.default?.getAbsoluteFSPath?.();
 
-// 4) Apply a route-scoped CSP that permits inline script/style ONLY on /swagger
+if (!swaggerUiDistPath) {
+  // Very defensive: if resolution fails, you’ll see a clear error in logs
+  // but app still runs for other routes.
+  // eslint-disable-next-line no-console
+  console.error('[Swagger] Failed to resolve swagger-ui-dist path');
+}
+
+app.use(
+  '/swagger-assets',
+  express.static(swaggerUiDistPath, { maxAge: '1y', index: false })
+);
+
+// 4) Route-scoped CSP that allows inline script/style ONLY on /swagger
 const swaggerCsp = helmet.contentSecurityPolicy({
   useDefaults: true,
   directives: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "'unsafe-inline'"], // Swagger UI boot script is inline
-    styleSrc: ["'self'", "'unsafe-inline'"],  // Swagger UI injects inline styles
-    imgSrc: ["'self'", "data:"],
-    connectSrc: ["'self'"],                   // XHR for /swagger.json
-    workerSrc: ["'self'", "blob:"],
+    scriptSrc: ["'self'", "'unsafe-inline'"], // Swagger boot script is inline
+    styleSrc: ["'self'", "'unsafe-inline'"],  // Swagger injects inline styles
+    imgSrc: ["'self'", 'data:'],
+    connectSrc: ["'self'"],                   // fetch /swagger.json
+    workerSrc: ["'self'", 'blob:'],
     frameAncestors: ["'self'"]
   }
 });
 
-// 5) Serve the HTML shell that points to our local assets (no CDN)
+// 5) Serve the HTML that uses our local assets (no CDN)
 app.get('/swagger', swaggerCsp, (_req, res) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -93,15 +107,15 @@ app.get('/swagger', swaggerCsp, (_req, res) => {
   res.type('text/html; charset=utf-8').status(200).send(html);
 });
 
-// ===== Health
+/* ===== Health ===== */
 app.get('/health', (_req, res) => {
   res.json({ success: true, status: 'OK' });
 });
 
-// ===== API routes
+/* ===== API routes ===== */
 app.use('/api', routes);
 
-// ===== 404 + errors (keep last)
+/* ===== 404 + errors (keep last) ===== */
 app.use(notFound);
 app.use(errorHandler);
 
