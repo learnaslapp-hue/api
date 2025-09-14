@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 import { swaggerOptions } from './config/swagger.js';
 import routes from './routes/index.routes.js';
@@ -11,53 +12,41 @@ import { notFound, errorHandler } from './middlewares/error-handler.js';
 
 const app = express();
 
+// Global middleware
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 
-// --- Swagger (MOUNT AT /swagger) ---
+// --- Swagger (local assets + route-specific CSP) ---
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Serve the raw OpenAPI spec as JSON
+// Allow Swagger UI's inline <script> and <style> only on /swagger
+// Also keep everything else restricted to 'self'
+const swaggerCsp = helmet.contentSecurityPolicy({
+  useDefaults: true,
+  directives: {
+    defaultSrc: ["'self'"],
+    // Swagger UI HTML includes an inline script block; allow it here.
+    scriptSrc: ["'self'", "'unsafe-inline'"],
+    // Swagger UI injects inline styles; allow them here.
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:"],
+    // Needed for XHR to /swagger.json on same origin
+    connectSrc: ["'self'"]
+  }
+});
+
+// Mount CSP override first, then swagger static + page.
+// swaggerUi.serve serves local assets from swagger-ui-express package.
+// No external CDNs required, so no CSP exceptions for remote hosts.
+app.use('/swagger', swaggerCsp, swaggerUi.serve, swaggerUi.setup(swaggerSpec, { explorer: true }));
+
+// (Optional) expose the JSON spec if you want to fetch it directly
 app.get('/swagger.json', (_req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.status(200).send(swaggerSpec);
-});
-
-// Serve Swagger UI HTML, loading assets from CDN
-app.get('/swagger', (_req, res) => {
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>ASL API Docs</title>
-  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
-  <style>
-    body { margin:0; }
-    #swagger-ui { min-height: 100vh; }
-  </style>
-</head>
-<body>
-  <div id="swagger-ui"></div>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
-  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
-  <script>
-    window.onload = () => {
-      window.ui = SwaggerUIBundle({
-        url: '/swagger.json',
-        dom_id: '#swagger-ui',
-        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-        layout: 'BaseLayout',
-        deepLinking: true
-      });
-    };
-  </script>
-</body>
-</html>`;
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.status(200).send(html);
 });
 
 // Health
