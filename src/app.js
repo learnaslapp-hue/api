@@ -91,9 +91,16 @@ app.get('/swagger', swaggerCsp, (_req, res) => {
   res.type('text/html; charset=utf-8').status(200).send(html);
 });
 
+function buildTemplateUrl(file) {
+  const base =
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.APP_BASE_URL || '';
+  return `${base}/${file}`;
+}
 /* ===== Health ===== */
 app.get('/health', (_req, res) => {
-  res.json({ success: true, status: 'OK' });
+  res.json({ success: true, status: 'OK', template: buildTemplateUrl('email-verification.html'), vercelUrl: process.env.VERCEL_URL || null, appBaseUrl: process.env.APP_BASE_URL || null });
 });
 
 /* ===== API routes ===== */
