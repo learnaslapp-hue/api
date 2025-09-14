@@ -100,7 +100,7 @@ function buildTemplateUrl(file) {
 }
 /* ===== Health ===== */
 app.get('/health', (_req, res) => {
-  res.json({ success: true, status: 'OK', template: buildTemplateUrl('email-verification.html'), vercelUrl: process.env.VERCEL_URL || null, appBaseUrl: process.env.APP_BASE_URL || null });
+  res.json({ success: true, status: 'OK', });
 });
 
 /* ===== API routes ===== */

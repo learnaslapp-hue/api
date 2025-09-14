@@ -16,4 +16,16 @@ export const env = {
     ssl: process.env.DB_SSL === 'true' || false,
   },
   bcryptRounds: Number(process.env.BCRYPT_SALT_ROUNDS || 10),
+  ev: {
+    evEmail: process.env.EV_EMAIL,
+    evPass: process.env.EV_PASS,
+    evAddress: process.env.EV_ADDRESS,
+    evSubject: process.env.EV_SUBJECT,
+    evResetSubject: process.env.EV_RESET_SUBJECT,
+    evCompany: process.env.EV_COMPANY,
+    evUrl: process.env.EV_URL,
+    evTemplate: process.env.EV_TEMPLATE,
+    evResetTemplate: process.env.EV_RESET_TEMPLATE,
+    
+  }
 };
