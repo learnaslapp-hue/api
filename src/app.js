@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import { swaggerOptions } from './config/swagger.js';
@@ -21,17 +20,45 @@ app.use(morgan('dev'));
 // --- Swagger (MOUNT AT /swagger) ---
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// 1) Serve static assets from swagger-ui-dist at /swagger/*
-app.use(
-  '/swagger',
-  swaggerUi.serveFiles(swaggerSpec, { explorer: true })
-);
+// Serve the raw OpenAPI spec as JSON
+app.get('/swagger.json', (_req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.status(200).send(swaggerSpec);
+});
 
-// 2) Serve the HTML that bootstraps Swagger UI at /swagger
-app.get(
-  '/swagger',
-  swaggerUi.setup(swaggerSpec, { explorer: true })
-);
+// Serve Swagger UI HTML, loading assets from CDN
+app.get('/swagger', (_req, res) => {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ASL API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin:0; }
+    #swagger-ui { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/swagger.json',
+        dom_id: '#swagger-ui',
+        presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+        layout: 'BaseLayout',
+        deepLinking: true
+      });
+    };
+  </script>
+</body>
+</html>`;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(html);
+});
 
 // Health
 app.get('/health', (_req, res) => {
