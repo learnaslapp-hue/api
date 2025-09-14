@@ -6,7 +6,8 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import swaggerJsdoc from 'swagger-jsdoc';
-import * as swaggerUiDist from 'swagger-ui-dist'; // ESM-safe import
+// import * as swaggerUiDist from 'swagger-ui-dist'; // ESM-safe import
+import swaggerUiDist from 'swagger-ui-dist';       // default import for CJS interop
 
 import { swaggerOptions } from './config/swagger.js';
 import routes from './routes/index.routes.js';
@@ -40,23 +41,27 @@ app.get('/swagger.json', (_req, res) => {
 
 // 3) Serve Swagger UI assets from node_modules/swagger-ui-dist
 //    This uses ESM-friendly import of the CJS package.
-const swaggerUiDistPath =
-  typeof swaggerUiDist.getAbsoluteFSPath === 'function'
-    ? swaggerUiDist.getAbsoluteFSPath()
-    : // fallback in case the package shape changes
-      swaggerUiDist.default?.getAbsoluteFSPath?.();
+// const swaggerUiDistPath =
+//   typeof swaggerUiDist.getAbsoluteFSPath === 'function'
+//     ? swaggerUiDist.getAbsoluteFSPath()
+//     : // fallback in case the package shape changes
+//       swaggerUiDist.default?.getAbsoluteFSPath?.();
 
-if (!swaggerUiDistPath) {
-  // Very defensive: if resolution fails, you’ll see a clear error in logs
-  // but app still runs for other routes.
-  // eslint-disable-next-line no-console
-  console.error('[Swagger] Failed to resolve swagger-ui-dist path');
-}
+// if (!swaggerUiDistPath) {
+//   // Very defensive: if resolution fails, you’ll see a clear error in logs
+//   // but app still runs for other routes.
+//   // eslint-disable-next-line no-console
+//   console.error('[Swagger] Failed to resolve swagger-ui-dist path');
+// }
 
-app.use(
-  '/swagger-assets',
-  express.static(swaggerUiDistPath, { maxAge: '1y', index: false })
-);
+// Resolve absolute FS path to swagger-ui-dist assets
+const swaggerUiDistPath = swaggerUiDist.getAbsoluteFSPath();
+
+// app.use(
+//   '/swagger-assets',
+//   express.static(swaggerUiDistPath, { maxAge: '1y', index: false })
+// );
+app.use('/swagger-assets', express.static(swaggerUiDistPath, { maxAge: '1y', index: false }));
 
 // 4) Route-scoped CSP that allows inline script/style ONLY on /swagger
 const swaggerCsp = helmet.contentSecurityPolicy({
