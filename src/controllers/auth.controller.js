@@ -4,6 +4,7 @@ import {
   ERROR_PASSWORD_INCORRECT,
   REGISTER_SUCCESS,
   ERROR_USER_EXISTS,
+  ERROR_OTP_INVALID
 } from '../constants/auth.constant.js';
 import { findActiveUserByEmail, registerUser, updateOTP, markAsVerified } from '../services/auth.service.js';
 import { hashPassword, generateOTP } from '../utils/utils.js';
@@ -79,10 +80,10 @@ export async function sendVerification(req, res) {
 
     user = await findActiveUserByEmail(email);
     if (!user) {
-      return res.status(401).json({ success: false, message: OTP_ERROR_INVALID });
+      return res.status(401).json({ success: false, message: ERROR_OTP_INVALID });
     }
     if(type === 'reset' && !user.isVerifiedUser) {
-      return res.status(401).json({ success: false, message: OTP_ERROR_INVALID });
+      return res.status(401).json({ success: false, message: 'User is not verified' });
     }
 
     let verification;
