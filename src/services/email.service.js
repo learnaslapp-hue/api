@@ -3,10 +3,16 @@ import { readFile } from 'fs/promises';
 import path from 'path';
 import { env } from '../config/env.js';
 import { hashPassword } from '../utils/utils.js';
+import { fileURLToPath } from 'url';
 
 // Helper: resolve template path relative to project root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 function resolveTemplate(p) {
-  return path.isAbsolute(p) ? p : path.join(process.cwd(), p);
+  return path.isAbsolute(p)
+    ? p
+    : path.join(__dirname, '..', '..', p); // resolves relative to project root
 }
 
 function createTransporter() {

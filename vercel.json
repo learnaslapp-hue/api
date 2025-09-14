@@ -6,6 +6,11 @@
       "use": "@vercel/node"
     }
   ],
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "templates/**"
+    }
+  },
   "routes": [
     { "src": "/api/.*", "dest": "index.js" },
     { "src": "/(.*)", "dest": "index.js" }
