@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import swaggerJsdoc from 'swagger-jsdoc';
 
 import { swaggerOptions } from './config/swagger.js';
@@ -12,14 +13,19 @@ import { notFound, errorHandler } from './middlewares/error-handler.js';
 const app = express();
 app.disable('x-powered-by');
 
+// ===== Global middleware =====
 app.use(helmet());
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 
+// ===== Serve static files from /public (for local dev) =====
+// On Vercel, /public is automatically exposed. This makes local dev match.
+app.use(express.static(path.join(process.cwd(), 'public')));
+
 /* ============================
-   Swagger (CDN assets + route CSP that allows CDN)
+   Swagger Docs
    ============================ */
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
@@ -27,19 +33,31 @@ app.get('/swagger.json', (_req, res) => {
   res.type('application/json').status(200).send(swaggerSpec);
 });
 
+// Per-route CSP so Swagger UI can load from CDN
 const swaggerCsp = helmet.contentSecurityPolicy({
   useDefaults: true,
   directives: {
     defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
-    styleSrc: ["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+    scriptSrc: [
+      "'self'",
+      "https://unpkg.com",
+      "https://cdn.jsdelivr.net",
+      "'unsafe-inline'"
+    ],
+    styleSrc: [
+      "'self'",
+      "https://unpkg.com",
+      "https://cdn.jsdelivr.net",
+      "'unsafe-inline'"
+    ],
     imgSrc: ["'self'", "data:", "https://unpkg.com", "https://cdn.jsdelivr.net"],
-    connectSrc: ["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net"],
+    connectSrc: ["'self'"],
     workerSrc: ["'self'", "blob:"],
     frameAncestors: ["'self'"]
   }
 });
 
+// Serve Swagger UI HTML
 app.get('/swagger', swaggerCsp, (_req, res) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -81,7 +99,7 @@ app.get('/health', (_req, res) => {
 /* ===== API routes ===== */
 app.use('/api', routes);
 
-/* ===== 404 + errors (keep last) ===== */
+/* ===== 404 + error handlers ===== */
 app.use(notFound);
 app.use(errorHandler);
 
