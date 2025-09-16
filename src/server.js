@@ -1,29 +1,29 @@
-//src/server.js
-import fs from 'fs';
+// src/server.js
 import http from 'http';
-import https from 'https';
+import os from 'os';
 import app from './app.js';
-import { env } from './config/env.js';
 
-// HTTP
-const httpServer = http.createServer(app);
-httpServer.listen(env.port, () => {
+const PORT = Number(process.env.PORT) || 3000;
+
+http.createServer(app).listen(PORT, () => {
+  const nets = os.networkInterfaces();
+  const addrs = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) addrs.push(`http://${net.address}:${PORT}`);
+    }
+  }
+  const local = `http://localhost:${PORT}`;
+  const lines = [
+    '',
+    `HTTP server listening:`,
+    `  • Local:   ${local}`,
+    ...(addrs.length ? [`  • Network: ${addrs.join(', ')}`] : []),
+    `Swagger UI:`,
+    `  • ${local}/swagger`,
+    ...(addrs.length ? addrs.map(a => `  • ${a}/swagger`) : []),
+    '',
+  ];
   // eslint-disable-next-line no-console
-  console.log(`[HTTP] Listening on http://localhost:${env.port}`);
+  console.log(lines.join('\n'));
 });
-
-// HTTPS (optional in dev)
-if (env.sslKey && env.sslCert && fs.existsSync(env.sslKey) && fs.existsSync(env.sslCert)) {
-  const options = {
-    key: fs.readFileSync(env.sslKey),
-    cert: fs.readFileSync(env.sslCert),
-  };
-  const httpsServer = https.createServer(options, app);
-  httpsServer.listen(env.httpsPort, () => {
-    // eslint-disable-next-line no-console
-    console.log(`[HTTPS] Listening on https://localhost:${env.httpsPort}`);
-  });
-} else {
-  // eslint-disable-next-line no-console
-  console.log('[HTTPS] SSL key/cert not found or not configured—skipping HTTPS server');
-}

@@ -15,7 +15,7 @@ const router = Router();
  * /api/auth/login:
  *   post:
  *     tags: [Auth]
- *     summary: Log in using username and password
+ *     summary: Log in using email and password
  *     requestBody:
  *       required: true
  *       content:
@@ -23,10 +23,10 @@ const router = Router();
  *           schema:
  *             type: object
  *             required:
- *               - userName
+ *               - email
  *               - password
  *             properties:
- *               userName:
+ *               email:
  *                 type: string
  *               password:
  *                 type: string
