@@ -14,36 +14,32 @@ const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', true);
 
-// ===== Global middleware (HTTP/IP dev friendly) =====
-app.use(
-  helmet({
-    hsts: false,
-    crossOriginOpenerPolicy: false,
-    originAgentCluster: false,
-    crossOriginEmbedderPolicy: false,
-  })
-);
-
+// Dev/Prod-safe Helmet. No invalid meta, no COEP in dev.
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 
-// ===== Static (optional) =====
+// Static (optional)
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// Tiny favicon to quiet the 404/upgrade noise
+// Quiet favicon console noise
 app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-// ===== Build Swagger spec once =====
+/* ============================
+   Swagger Docs
+   ============================ */
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Keep /swagger.json available (optional; UI won’t fetch it)
+// Optional: raw spec (not used by the UI, but handy for debugging)
 app.get('/swagger.json', (_req, res) => {
   res.type('application/json').status(200).send(swaggerSpec);
 });
 
-// Per-route CSP so Swagger UI can load from CDN
+// CSP for the Swagger page (allows self + CDN assets)
 const swaggerCsp = helmet.contentSecurityPolicy({
   useDefaults: true,
   directives: {
@@ -51,22 +47,20 @@ const swaggerCsp = helmet.contentSecurityPolicy({
     scriptSrc: ["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
     styleSrc:  ["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
     imgSrc:    ["'self'", "data:", "https://unpkg.com", "https://cdn.jsdelivr.net"],
-    connectSrc:["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net"],
+    connectSrc:["'self'", "https://unpkg.com", "https://cdn.jsdelivr.net"], // API calls are same-origin => 'self'
     workerSrc: ["'self'", "blob:"],
     frameAncestors: ["'self'"],
   },
 });
 
-// ===== Serve Swagger UI (inline spec + HTTP pin + request interceptor) =====
+// Serve Swagger UI — spec is inlined; server URL matches page origin (http or https)
 app.get('/swagger', swaggerCsp, (_req, res) => {
   const specJson = JSON.stringify(swaggerSpec);
-
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>ASL API Docs</title>
-  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests: 0">
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
     html, body { height: 100%; }
@@ -77,17 +71,12 @@ app.get('/swagger', swaggerCsp, (_req, res) => {
 <body>
   <div id="swagger-ui"></div>
 
-  <!-- Inline the spec to avoid network fetches that might be auto-upgraded -->
   <script>
-    (function() {
-      // Make a shallow copy so we can safely mutate servers
+    (function () {
+      // Clone spec and set the first server to the exact page origin (scheme preserved)
       var spec = ${specJson};
-      var httpOrigin = 'http://' + window.location.host;
-
-      // Force the first server to be absolute HTTP (works for IP or localhost)
-      spec.servers = [{ url: httpOrigin, description: 'Pinned HTTP Origin' }, { url: '/', description: 'Current Origin' }];
-
-      // Expose for the UI init below
+      var origin = window.location.origin; // e.g., https://learnasl.vercel.app or http://192.168.x.x:3000
+      spec.servers = [{ url: origin, description: 'This Origin' }, { url: '/', description: 'Relative' }];
       window.__SWAGGER_SPEC__ = spec;
     })();
   </script>
@@ -97,26 +86,11 @@ app.get('/swagger', swaggerCsp, (_req, res) => {
   <script>
     window.onload = function () {
       window.ui = SwaggerUIBundle({
-        // Use the inlined spec
         spec: window.__SWAGGER_SPEC__,
         dom_id: '#swagger-ui',
         presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
         layout: 'BaseLayout',
-        deepLinking: true,
-
-        // Last-resort safety: if the browser/extension rewrites to https,
-        // rewrite requests back to http://<host> before sending.
-        requestInterceptor: function(req) {
-          try {
-            var host = window.location.host;
-            var httpsPrefix = 'https://' + host;
-            var httpPrefix  = 'http://'  + host;
-            if (req.url.indexOf(httpsPrefix) === 0) {
-              req.url = httpPrefix + req.url.slice(httpsPrefix.length);
-            }
-          } catch(e) {}
-          return req;
-        }
+        deepLinking: true
       });
     };
   </script>

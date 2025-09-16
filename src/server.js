@@ -16,14 +16,13 @@ http.createServer(app).listen(PORT, () => {
   const local = `http://localhost:${PORT}`;
   const lines = [
     '',
-    `HTTP server listening:`,
+    'HTTP server listening:',
     `  • Local:   ${local}`,
     ...(addrs.length ? [`  • Network: ${addrs.join(', ')}`] : []),
-    `Swagger UI:`,
+    'Swagger UI:',
     `  • ${local}/swagger`,
     ...(addrs.length ? addrs.map(a => `  • ${a}/swagger`) : []),
     '',
   ];
-  // eslint-disable-next-line no-console
   console.log(lines.join('\n'));
 });
