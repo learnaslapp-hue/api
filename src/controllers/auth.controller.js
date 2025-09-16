@@ -18,12 +18,16 @@ export async function login(req, res) {
     return res.status(401).json({ success: false, message: ERROR_USER_NOT_FOUND });
   }
 
-  const isMatch = await compare(user.passwordHash, password);
+  const isMatch = await compare(user.password , password);
   if (!isMatch) {
     return res.status(401).json({ success: false, message: ERROR_PASSWORD_INCORRECT });
   }
 
-  delete user.passwordHash;
+  if(!user.isVerifiedUser) {
+    return res.status(401).json({ success: false, message: 'User is not verified' });
+  }
+
+  delete user.password;
   delete user.currentOtp;
 
   return res.json({ success: true, data: user });
@@ -42,6 +46,8 @@ export async function register(req, res) {
     if(!user) {
       const passwordHash = await hashPassword(password);
       user = await registerUser(name, email, otp, passwordHash);
+    } else if(user.isVerifiedUser) {
+      return res.status(400).json({ success: false, message: ERROR_USER_EXISTS });
     } else {
       user = await updateOTP(email, otp);
     }
