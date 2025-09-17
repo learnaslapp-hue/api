@@ -6,14 +6,14 @@ import {
   ERROR_USER_EXISTS,
   ERROR_OTP_INVALID
 } from '../constants/auth.constant.js';
-import { findActiveUserByEmail, registerUser, updateOTP, markAsVerified } from '../services/auth.service.js';
+import { findActiveUserByEmail, registerUser, updateOTP, markAsVerified, updatePassword } from '../services/auth.service.js';
 import { hashPassword, generateOTP } from '../utils/utils.js';
 import { sendEmailVerification, sendResetPasswordOtp } from '../services/email.service.js';
 
 export async function login(req, res) {
   const { email, password } = req.body;
 
-  const user = await findActiveUserByEmail(email);
+  let user = await findActiveUserByEmail(email);
   if (!user) {
     return res.status(401).json({ success: false, message: ERROR_USER_NOT_FOUND });
   }
@@ -24,6 +24,9 @@ export async function login(req, res) {
   }
 
   if(!user.isVerifiedUser) {
+    const otp = generateOTP();
+    await sendResetPasswordOtp(email, otp);
+    user = await updateOTP(email, otp);
     return res.status(401).json({ success: false, message: 'User is not verified' });
   }
 
@@ -86,7 +89,7 @@ export async function sendVerification(req, res) {
 
     user = await findActiveUserByEmail(email);
     if (!user) {
-      return res.status(401).json({ success: false, message: ERROR_OTP_INVALID });
+      return res.status(401).json({ success: false, message: ERROR_USER_NOT_FOUND });
     }
     if(type === 'reset' && !user.isVerifiedUser) {
       return res.status(401).json({ success: false, message: 'User is not verified' });
@@ -126,6 +129,35 @@ export async function verify(req, res) {
   }
 
   user = await markAsVerified(user.userId);
+  delete user.passwordHash;
+  delete user.currentOtp;
+
+  user = {
+    ...user,
+    hashOtp: await hashPassword(otp.toString())
+  }
+
+  return res.json({ success: true, data: user });
+}
+
+export async function resetPassword(req, res) {
+  const { email, hashOtp, password } = req.body;
+
+  if(!password || password.length === 0) {
+    return res.status(401).json({ success: false, message: "Password is required" });
+  }
+
+  let user = await findActiveUserByEmail(email);
+  if (!user) {
+    return res.status(401).json({ success: false, message: ERROR_USER_NOT_FOUND });
+  }
+
+  const isMatch = await compare(hashOtp, user.currentOtp);
+  if (!isMatch) {
+    return res.status(401).json({ success: false, message: "Please request a new OTP" });
+  }
+
+  user = await updatePassword(user.userId, await hashPassword(password.toString()));
   delete user.passwordHash;
   delete user.currentOtp;
 

@@ -6,7 +6,7 @@
  */
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/async.js';
-import { login, register, sendVerification, verify} from '../controllers/auth.controller.js';
+import { login, register, resetPassword, sendVerification, verify} from '../controllers/auth.controller.js';
 
 const router = Router();
 
@@ -192,4 +192,51 @@ router.post('/send-verification', asyncHandler(sendVerification));
  */
 router.post('/verify', asyncHandler(verify));
 
+
+/**
+ * @openapi
+ * /api/auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Reset user password
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - hashOtp
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               hashOtp:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     userId:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *       401:
+ *         description: Invalid data or user already exists
+ */
+router.post('/reset-password', asyncHandler(resetPassword));
 export default router;

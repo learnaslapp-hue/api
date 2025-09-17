@@ -44,3 +44,13 @@ export async function markAsVerified(userId) {
   const result = await pool.query(sql, params);
   return camelcaseKeys(result.rows[0]);
 }
+
+export async function updatePassword(userId, passwordHash) {
+  const sql = `
+    UPDATE dbo."User" set "Password" = $2 WHERE "UserId" = $1
+    RETURNING "UserId", "Name", "Email", "CurrentOTP", "Active", "IsVerifiedUser";
+  `;
+  const params = [userId, passwordHash]; // Default OTP for now
+  const result = await pool.query(sql, params);
+  return camelcaseKeys(result.rows[0]);
+}
