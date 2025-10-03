@@ -1,3 +1,4 @@
+//src/config/env.js
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -27,5 +28,8 @@ export const env = {
     evTemplate: process.env.EV_TEMPLATE,
     evResetTemplate: process.env.EV_RESET_TEMPLATE,
     
+  },
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY 
   }
 };
