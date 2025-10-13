@@ -18,7 +18,7 @@ export async function getAPIKey() {
     SELECT *
     FROM dbo."APIKeyManagement"
     WHERE "Active" = true
-    ORDER BY "Usage" DESC
+    ORDER BY "Usage" ASC
     LIMIT 1;
   `;
   const result = await pool.query(sql);
