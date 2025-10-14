@@ -16,32 +16,6 @@
  *         Per-user cache scope. In Node, headers are lowercased and accessible as
  *         `req.headers['userid']`.
  *       example: "1"
- *   schemas:
- *     ApiResponseMany:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *         cached:
- *           type: boolean
- *         data:
- *           type: array
- *           items:
- *             type: object
- *     ApiResponseOne:
- *       type: object
- *       properties:
- *         success:
- *           type: boolean
- *         cached:
- *           type: boolean
- *         refreshed:
- *           type: boolean
- *         userId:
- *           type: string
- *           nullable: true
- *         data:
- *           type: object
  */
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/async.js';
@@ -57,11 +31,31 @@ const router = Router();
  *     summary: Get list of all active API keys
  *     responses:
  *       200:
- *         description: List of API keys
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ApiResponseMany'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       apiKey:
+ *                         type: string
+ *                       usage:
+ *                         type: string
+ *                       active:
+ *                         type: string
  */
 router.get('/all', asyncHandler(getAll));
 
@@ -82,11 +76,29 @@ router.get('/all', asyncHandler(getAll));
  *         description: If true, bypass and refresh this user's cache.
  *     responses:
  *       200:
- *         description: API Key
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/ApiResponseOne'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     apiKey:
+ *                       type: string
+ *                     usage:
+ *                       type: string
+ *                     active:
+ *                       type: string
  */
 router.get('/one', asyncHandler(get));
 
@@ -126,6 +138,19 @@ router.get('/one', asyncHandler(get));
  *                   type: boolean
  *                 data:
  *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     apiKey:
+ *                       type: string
+ *                     usage:
+ *                       type: string
+ *                     active:
+ *                       type: string
  *                 message:
  *                   type: string
  *       400:
@@ -148,7 +173,31 @@ router.post('/', asyncHandler(create));
  *         description: API Key ID
  *     responses:
  *       200:
- *         description: Updated API key marked as expired (cache invalidated for all users)
+ *         description: API Key marked as expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     apiKey:
+ *                       type: string
+ *                     usage:
+ *                       type: string
+ *                     active:
+ *                       type: string
+ *                 message:
+ *                   type: string
  *       404:
  *         description: API Key not found
  *       400:
